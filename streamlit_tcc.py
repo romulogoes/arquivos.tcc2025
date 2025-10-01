@@ -77,33 +77,35 @@ with exp:
 
             count = df.groupby(coluna).size().reset_index(name="Quantidade")
             fig_pizza = px.pie(
-                count,
-                values="Quantidade",
-                names=coluna,
-                title="Percentual de presença",
-                hole=0.3,
-                labels={"TP_PRESENCA_CH": "Categoria"}
+                count, values="Quantidade", names=coluna,
+                title="Percentual de presença", hole=0.3,
+                labels = {"TP_PRESENCA_CH": "Categoria"}
             )
-            fig_pizza.update_traces(textfont={"size":18}, textinfo="percent", texttemplate="%{percent:.2%}")
+            fig_pizza.update_traces(
+                textfont={"size": 18},
+                textinfo="percent",
+                texttemplate="%{percent:.2%}"
+            )
             with sub_col1:
                 st.plotly_chart(fig_pizza, use_container_width=True)
 
             barra = df.groupby(["NU_ANO", coluna]).size().reset_index(name="Quantidade")
+
             fig_barra = px.bar(
                 barra,
-                x="NU_ANO",
-                y="Quantidade",
-                color=coluna,
-                text="Quantidade",
+                x="NU_ANO", y="Quantidade",
+                color=coluna, text="Quantidade",
                 barmode="group",
                 title="Situação por ano",
-                category_orders={"TP_PRESENCA_CH": ["Presente", "Ausente", "Eliminado"]}
+                category_orders={coluna: ["Presente", "Ausente", "Eliminado"]},
+                labels={"NU_ANO": "Ano", "Quantidade": "Quantidade",
+        coluna: "Categoria" }
             )
+
             with sub_col2:
                 st.plotly_chart(fig_barra, use_container_width=True)
 
-
-exp = st.expander("📈 Notas Médias", expanded=True)
+exp = st.expander("📈 Notas Médias", expanded=True) #-----NOTAS MÉDIAS
 with exp:
     areas = {
         "CN": "Ciências da Natureza",
@@ -118,38 +120,78 @@ with exp:
         col_nota = f"NU_NOTA_{sigla}"
         if col_nota in df.columns:
             df[col_nota] = pd.to_numeric(df[col_nota], errors="coerce")
-            temp = df.groupby("NU_ANO")[col_nota].mean().reset_index()
-            temp = temp.rename(columns={col_nota: "Nota"})
-            temp["Área"] = nome
-            medias.append(temp)
+            temp_soma = pd.DataFrame({
+                "NU_ANO": ["Soma Total"],
+                "Nota": [df[col_nota].sum()],
+                "Área": [nome]
+            })
+            medias.append(temp_soma)
 
     if medias:
         df_medias = pd.concat(medias)
-
-        ordem_areas = ["Ciências da Natureza", "Ciências Humanas", "Linguagens e Códigos", "Matemática", "Redação"]
+        ordem_areas = list(areas.values())
         df_medias["Área"] = pd.Categorical(df_medias["Área"], categories=ordem_areas, ordered=True)
 
         col1, col2 = st.columns(2)
 
         with col1:
-            df_medias["NU_ANO"] = df_medias["NU_ANO"].astype(str)
+            colunas_de_notas = list(areas.keys())
+            colunas_de_notas = [f"NU_NOTA_{sigla}" for sigla in colunas_de_notas]
+
+            mapa_nomes = {f"NU_NOTA_{sigla}": nome for sigla, nome in areas.items()}
+
+            df_longo = df.melt(
+                id_vars=['NU_ANO'],
+                value_vars=colunas_de_notas,
+                var_name='Area_Original',
+                value_name='Nota'
+            )
+            df_longo['Área'] = df_longo['Area_Original'].map(mapa_nomes)
+
+            df_medias = df_longo.groupby(['NU_ANO', 'Área'])['Nota'].mean().reset_index()
+
+            df_plot = df_medias[df_medias["NU_ANO"].isin([2019, 2023])].copy()
+
+            df_soma = (
+                df_plot.groupby("Área")["Nota"]
+                .sum()
+                .reset_index()
+            )
+
             fig_medias = px.bar(
-                df_medias, x="Área", y="Nota",
-                barmode="group", text="Nota",
-                title="Médias gerais"
+                df_soma, x="Área", y="Nota",
+                text="Nota",
+                title="Soma das Médias por Área (2019 + 2023)"
             )
             fig_medias.update_traces(texttemplate="%{text:.0f}", textposition="inside")
             fig_medias.update_yaxes(tickformat="d")
             st.plotly_chart(fig_medias, use_container_width=True)
 
-
         with col2:
-            fig = px.bar(
-                df_medias,
-                x="Área", y="Nota", color="Área",
-                title=f"Médias por área e ano", text="Nota"
+            colunas_de_notas = list(areas.keys())
+            colunas_de_notas = [f"NU_NOTA_{sigla}" for sigla in colunas_de_notas]
+
+            mapa_nomes = {f"NU_NOTA_{sigla}": nome for sigla, nome in areas.items()}
+
+            df_longo = df.melt(
+                id_vars=['NU_ANO'],
+                value_vars=colunas_de_notas,
+                var_name='Area_Original',
+                value_name='Nota'
             )
-            fig.update_traces(texttemplate="%{text:.0f}", textposition="inside", textfont={"size":18})
+            df_longo['Área'] = df_longo['Area_Original'].map(mapa_nomes)
+
+            df_medias = df_longo.groupby(['NU_ANO', 'Área'])['Nota'].mean().reset_index()
+            df_plot = df_medias[df_medias["NU_ANO"].isin([2019, 2023])]
+            df_plot['NU_ANO'] = df_plot['NU_ANO'].astype(str)
+
+            fig = px.bar(
+                df_plot, x="Área", y="Nota",
+                color="NU_ANO", barmode="group", text="Nota",
+                title="Médias por Área (2019 vs 2023)",
+                category_orders={"NU_ANO": ["2019", "2023"]}
+            )
+            fig.update_traces(texttemplate="%{text:.0f}", textposition="inside", textfont={"size": 16})
             fig.update_yaxes(tickformat="d")
             st.plotly_chart(fig, use_container_width=True)
 
