@@ -17,7 +17,6 @@ except Exception as e:
     st.error(f"Erro ao abrir o CSV: {e}")
     st.stop()
 
-
 campo_anos = st.sidebar.selectbox(
     "Anos",
     ["2019", "2023", "2019 e 2023"], index=2
@@ -49,7 +48,6 @@ with exp:
         )
         text = chart.mark_text(dy=-10, color="black", baseline="bottom", fontSize=18).encode(text=alt.Text("Quantidade:Q"))
         st.altair_chart(chart + text, use_container_width=True)
-
 
 exp = st.expander("✅ Presença nas provas", expanded=True)
 with exp:
@@ -147,9 +145,7 @@ with exp:
                 value_name='Nota'
             )
             df_longo['Área'] = df_longo['Area_Original'].map(mapa_nomes)
-
             df_medias = df_longo.groupby(['NU_ANO', 'Área'])['Nota'].mean().reset_index()
-
             df_plot = df_medias[df_medias["NU_ANO"].isin([2019, 2023])].copy()
 
             df_soma = (
@@ -161,7 +157,11 @@ with exp:
             fig_medias = px.bar(
                 df_soma, x="Área", y="Nota",
                 text="Nota",
-                title="Soma das Médias por Área (2019 + 2023)"
+                title="Soma das Médias por Área (2019 + 2023)",
+                category_orders={
+                    "Área": ["Ciências da Natureza", "Ciências Humanas", "Linguagens e Códigos", "Matemática",
+                             "Redação"]}
+
             )
             fig_medias.update_traces(texttemplate="%{text:.0f}", textposition="inside")
             fig_medias.update_yaxes(tickformat="d")
@@ -189,22 +189,47 @@ with exp:
                 df_plot, x="Área", y="Nota",
                 color="NU_ANO", barmode="group", text="Nota",
                 title="Médias por Área (2019 vs 2023)",
-                category_orders={"NU_ANO": ["2019", "2023"]}
+                category_orders={
+                    "Área": ["Ciências da Natureza", "Ciências Humanas", "Linguagens e Códigos", "Matemática",
+                             "Redação"],
+                    "NU_ANO": ["2019", "2023"]
+                },
+                labels={"NU_ANO": "Ano"}
             )
-            fig.update_traces(texttemplate="%{text:.0f}", textposition="inside", textfont={"size": 16})
+
+            fig.update_traces(
+                texttemplate="%{text:.0f}",
+                textposition="inside",
+                textangle=0,  # vertical
+                insidetextanchor="end",
+                textfont={"size": 16, "color": "white"}
+            )
+
+            fig.update_layout(uniformtext_minsize=10, uniformtext_mode="hide")
             fig.update_yaxes(tickformat="d")
             st.plotly_chart(fig, use_container_width=True)
-
 
 exp = st.expander("📦 Boxplots", expanded=True)      #-------BOXPLOTS
 with exp:
     notas_cols = []
+
     cols = st.columns(3)
     cols.extend(st.columns(2))
-    for sigla, nome in areas.items():
-        with cols[0]:
-            col_nota = f"NU_NOTA_{sigla}"
-            if col_nota in df.columns:
+
+    ordem_siglas = ["LC", "CH", "REDACAO", "CN", "MT"]
+    ordem_areas = [
+        "Ciências da Natureza",
+        "Linguagens e Códigos",
+        "Redação",
+        "Ciências Humanas",
+        "Matemática"
+    ]
+
+    for sigla in ordem_siglas:
+        nome = areas.get(sigla)
+        col_nota = f"NU_NOTA_{sigla}"
+        if nome and col_nota in df.columns:
+            with cols[0]:
                 df[col_nota] = pd.to_numeric(df[col_nota], errors="coerce")
                 st.subheader(f"{nome}")
                 fig = px.box(
@@ -213,10 +238,13 @@ with exp:
                     y=col_nota,
                     points="all",
                     title=f"{nome} por ano",
+                    labels={col_nota: "Nota"}
                 )
+                fig.update_yaxes(tickformat="d")
                 st.plotly_chart(fig, use_container_width=True)
                 notas_cols.append(col_nota)
         del cols[0]
+
     if notas_cols:
         df_long = df.melt(
             id_vars=["NU_ANO"],
@@ -228,6 +256,20 @@ with exp:
         df_long["Área"] = df_long["Área"].map(areas)
 
         df_long["Área"] = pd.Categorical(df_long["Área"], categories=ordem_areas, ordered=True)
+
+        st.subheader("Boxplots gerais por área (2019 e 2023 juntos)")
+        fig_all = px.box(
+            df_long,
+            x="Área",
+            y="Nota",
+            color="NU_ANO",
+            points="all",
+            title="Comparação de notas por área",
+            color_discrete_sequence=px.colors.qualitative.Set2,
+            category_orders={"Área": ordem_areas}
+        )
+        fig_all.update_yaxes(tickformat="d")
+        st.plotly_chart(fig_all, use_container_width=True)
 
         st.subheader("Boxplots gerais por área (2019 e 2023 juntos)")
         fig_all = px.box(
