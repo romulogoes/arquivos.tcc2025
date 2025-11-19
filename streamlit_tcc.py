@@ -792,5 +792,54 @@ else:
     st.warning("As colunas 'NU_ANO' e 'TP_DEPENDENCIA_ADM_ESC' não foram encontradas no CSV.")
 
 
+#HEATMAP
+st.markdown("---")
+st.subheader("📌 Heatmap de Notas por Área e Ano")
+
+
+colunas_notas = {
+    "Ciências da Natureza": "NU_NOTA_CN",
+    "Ciências Humanas": "NU_NOTA_CH",
+    "Linguagens e Códigos": "NU_NOTA_LC",
+    "Matemática": "NU_NOTA_MT",
+    "Redação": "NU_NOTA_REDACAO"
+}
+
+
+for col in colunas_notas.values():
+    if col in df.columns:
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+
+linhas = []
+for area, coluna in colunas_notas.items():
+    if coluna in df.columns:
+        medias = (
+            df.groupby("NU_ANO")[coluna]
+            .mean()
+            .reset_index(name="Média")
+        )
+        medias["Área"] = area
+        linhas.append(medias)
+
+df_medias = pd.concat(linhas)
+
+
+pivot = df_medias.pivot(index="Área", columns="NU_ANO", values="Média")
+
+fig = px.imshow(
+    pivot,
+    text_auto=".1f",
+    color_continuous_scale="Blues",
+    title="Heatmap das Médias por Área e Ano",
+    aspect="auto"
+)
+
+fig.update_layout(
+    xaxis_title="Ano",
+    yaxis_title="Área",
+    coloraxis_colorbar_title="Média"
+)
+
+st.plotly_chart(fig, use_container_width=True)
 
 
