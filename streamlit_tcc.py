@@ -25,12 +25,18 @@ selecionar_todos = st.sidebar.checkbox("Incluir os estudantes sem escola associa
 if not selecionar_todos:
     df = df[df["CO_MUNICIPIO_ESC"] == "1301902"]
 
-df["NU_ANO"] = df["NU_ANO"].astype(str).str.strip()
+df["NU_ANO"] = (
+    df["NU_ANO"]
+    .astype(str)
+    .str.replace(r"\D", "", regex=True)
+    .str[-4:]
+    .astype(int)
+)
+
 
 if campo_anos != "2019 e 2023":
-    df = df[df["NU_ANO"] == campo_anos]
-
-df["NU_ANO"] = pd.to_numeric(df["NU_ANO"], errors="coerce")
+    ano_escolhido = int(campo_anos)
+    df = df[df["NU_ANO"] == ano_escolhido]
 
 
 #FILTROS PARA OS TREINEIROS
@@ -44,10 +50,7 @@ incluir_treineiros = st.sidebar.checkbox(
 if not incluir_treineiros:
     df = df[df["IN_TREINEIRO"] == "0"]
 
-
-# -----------------------
-# MAPAS/LEGENDAS (apenas para exibição/descritivos)
-# -----------------------
+#até aqui
 mapa_sexo = {"M": "Masculino", "F": "Feminino"}
 mapa_estado_civil = {
     "0": "Não informado",
@@ -84,7 +87,6 @@ mapa_faixa_etaria = {
     "17": "60 anos ou mais"
 }
 
-# Mapeamentos de escola e bens (descrições — serão aplicadas em cópias para mostrar opções legíveis)
 dependencia_dict = {"1": "Federal", "2": "Estadual", "3": "Municipal", "4": "Privada"}
 ensino_dict = {"1": "Ensino Regular", "2": "Educação Especial - Modalidade Substitutiva", "3": "EJA"}
 localizacao_dict = {"1": "Urbana", "2": "Rural"}
@@ -124,13 +126,14 @@ mapa_automovel = {
     "D": "Possui carro e moto"
 }
 
+
+
 # -----------------------
 # EXPANDERS NA SIDEBAR (Geral, Escola, Bens e Moradia) usando valores reais do df_filtrado
 # -----------------------
 with st.sidebar.expander("Geral", expanded=False):
     st.subheader("Filtros gerais (dados reais)")
 
-    # Cria colunas descritivas temporárias para mostrar opções legíveis no multiselect
     tmp = df.copy()
 
     if "TP_SEXO" in tmp.columns:
@@ -138,9 +141,7 @@ with st.sidebar.expander("Geral", expanded=False):
         opcoes = sorted(tmp["TP_SEXO_DESC"].dropna().unique().tolist())
         sexo_sel = st.multiselect("Sexo", options=opcoes, default=[])
         if sexo_sel:
-            # mapear seleção de volta para os códigos originais (inverter mapa)
             inv = {v: k for k, v in mapa_sexo.items()}
-            # permitir selecionar tanto códigos já mapeados quanto valores livres
             codigos_sel = [inv[s] if s in inv else s for s in sexo_sel]
             df = df[df["TP_SEXO"].isin(codigos_sel) | df.get("TP_SEXO_DESC", pd.Series()).isin(sexo_sel)]
 
@@ -171,16 +172,13 @@ with st.sidebar.expander("Geral", expanded=False):
             codigos_sel = [inv[s] if s in inv else s for s in faixa_sel]
             df = df[df["TP_FAIXA_ETARIA"].isin(codigos_sel) | df.get("TP_FAIXA_ETARIA_DESC", pd.Series()).isin(faixa_sel)]
 
-    # Renda (Q006) — criar coluna RENDA_SM conforme seu mapa
     mapa_renda = {
         "A": 0, "B": 1.5, "C": 2, "D": 3, "E": 4, "F": 5,
         "G": 7, "H": 10, "I": 12, "J": 15, "K": 20,
         "L": 25, "M": 30, "N": 40, "O": 50
     }
     if "Q006" in df.columns:
-        # criar coluna numérica temporária
         df["RENDA_SM"] = df["Q006"].map(mapa_renda)
-        # proteger caso tudo seja NaN
         if df["RENDA_SM"].notna().any():
             min_renda = float(df["RENDA_SM"].min())
             max_renda = float(df["RENDA_SM"].max())
@@ -227,7 +225,6 @@ with st.sidebar.expander("Escola", expanded=False):
             codigos_sel = [inv[s] if s in inv else s for s in local_sel]
             df = df[df["TP_LOCALIZACAO_ESC"].isin(codigos_sel) | df.get("TP_LOCALIZACAO_ESC_DESC", pd.Series()).isin(local_sel)]
 
-    # opção extra: filtrar por nome de escola / município se presentes
     if "NO_ESCOLA" in tmp.columns:
         opcoes = sorted(tmp["NO_ESCOLA"].dropna().unique().tolist())
         escola_sel = st.multiselect("Nome da escola", options=opcoes, default=[])
@@ -245,7 +242,6 @@ with st.sidebar.expander("Bens e Moradia", expanded=False):
     st.subheader("Bens e Moradia (dados reais)")
     tmp = df.copy()
 
-    # criar colunas descritivas (quando existirem) e oferecer opções reais
     if "Q024" in tmp.columns:
         tmp["Q024_DESC"] = tmp["Q024"].map(mapa_computador).fillna(tmp["Q024"])
         opcoes = sorted(tmp["Q024_DESC"].dropna().unique().tolist())
@@ -253,7 +249,7 @@ with st.sidebar.expander("Bens e Moradia", expanded=False):
         if computador_sel:
             inv = {v: k for k, v in mapa_computador.items()}
             codigos_sel = [inv[s] if s in inv else s for s in computador_sel]
-            df_filtrado = df_filtrado[df_filtrado["Q024"].isin(codigos_sel) | df_filtrado.get("Q024_DESC", pd.Series()).isin(computador_sel)]
+            df = df[df["Q024"].isin(codigos_sel) | df.get("Q024_DESC", pd.Series()).isin(computador_sel)]
 
     if "Q027" in tmp.columns:
         tmp["Q027_DESC"] = tmp["Q027"].map(mapa_celular).fillna(tmp["Q027"])
@@ -262,7 +258,7 @@ with st.sidebar.expander("Bens e Moradia", expanded=False):
         if celular_sel:
             inv = {v: k for k, v in mapa_celular.items()}
             codigos_sel = [inv[s] if s in inv else s for s in celular_sel]
-            df_filtrado = df_filtrado[df_filtrado["Q027"].isin(codigos_sel) | df_filtrado.get("Q027_DESC", pd.Series()).isin(celular_sel)]
+            df = df[df["Q027"].isin(codigos_sel) | df.get("Q027_DESC", pd.Series()).isin(celular_sel)]
 
     if "Q025" in tmp.columns:
         tmp["Q025_DESC"] = tmp["Q025"].map(mapa_internet).fillna(tmp["Q025"])
@@ -271,7 +267,7 @@ with st.sidebar.expander("Bens e Moradia", expanded=False):
         if internet_sel:
             inv = {v: k for k, v in mapa_internet.items()}
             codigos_sel = [inv[s] if s in inv else s for s in internet_sel]
-            df_filtrado = df_filtrado[df_filtrado["Q025"].isin(codigos_sel) | df_filtrado.get("Q025_DESC", pd.Series()).isin(internet_sel)]
+            df = df[df["Q025"].isin(codigos_sel) | df.get("Q025_DESC", pd.Series()).isin(internet_sel)]
 
     if "Q026" in tmp.columns:
         tmp["Q026_DESC"] = tmp["Q026"].map(mapa_tv).fillna(tmp["Q026"])
@@ -280,7 +276,7 @@ with st.sidebar.expander("Bens e Moradia", expanded=False):
         if tv_sel:
             inv = {v: k for k, v in mapa_tv.items()}
             codigos_sel = [inv[s] if s in inv else s for s in tv_sel]
-            df_filtrado = df[df_filtrado["Q026"].isin(codigos_sel) | df.get("Q026_DESC", pd.Series()).isin(tv_sel)]
+            df = df[df["Q026"].isin(codigos_sel) | df.get("Q026_DESC", pd.Series()).isin(tv_sel)]
 
     if "Q028" in tmp.columns:
         tmp["Q028_DESC"] = tmp["Q028"].map(mapa_automovel).fillna(tmp["Q028"])
@@ -295,7 +291,7 @@ with st.sidebar.expander("Bens e Moradia", expanded=False):
 
 
 #BLOCO DAS INSCRIÇÕES
-exp = st.expander("📊 Inscrições no exame", expanded=True)
+exp = st.expander("📊 Inscrições no exame", expanded=False)
 with exp:
     col1, col2 = st.columns(2)
     with col2:
@@ -314,17 +310,15 @@ with exp:
         text = chart.mark_text(dy=10, color="white", baseline="middle", fontSize=18).encode(text=alt.Text("Quantidade:Q"))
         st.altair_chart(chart + text, use_container_width=True)
 
-exp = st.expander("✅ Presença nas provas", expanded=True)
+exp = st.expander("✅ Presença nas provas", expanded=False)
 with exp:
     st.markdown("### Presença nos dois dias de prova")
 
-    # Dicionário de colunas de presença
     dias = {
         "Dia 1 - Ciências Humanas, Linguagens e Redação": "TP_PRESENCA_CH",
         "Dia 2 - Ciências da Natureza e Matemática": "TP_PRESENCA_CN"
     }
 
-    # Normaliza as colunas de presença
     for coluna in dias.values():
         if coluna in df.columns:
             df[coluna] = df[coluna].replace({
@@ -357,15 +351,33 @@ with exp:
 
         with col_bar:
             barra = df.groupby(["NU_ANO", coluna]).size().reset_index(name="Quantidade")
+
+            # Calcula o percentual relativo dentro de cada ano
+            barra["Percentual"] = barra.groupby("NU_ANO")["Quantidade"].transform(lambda x: (x / x.sum()) * 100)
+
+            # Gráfico em barras (percentual)
             fig_barra = px.bar(
                 barra,
-                x="NU_ANO", y="Quantidade",
-                color=coluna, text="Quantidade",
+                x="NU_ANO",
+                y="Percentual",
+                color=coluna,
+                text=barra["Percentual"].apply(lambda x: f"{x:.1f}%"),  # mostra o percentual nas barras
                 barmode="group",
-                title="Situação por ano",
+                title="Situação Percentual por Ano",
                 category_orders={coluna: ["Presente", "Ausente", "Eliminado"]},
-                labels={"NU_ANO": "Ano", "Quantidade": "Qtd."}
+                labels={"NU_ANO": "Ano", "Percentual": "Percentual (%)"}
             )
+
+            # Layout
+            fig_barra.update_traces(textposition="outside")
+            fig_barra.update_layout(
+                yaxis_title="Percentual (%)",
+                xaxis_title="Ano",
+                legend_title="Situação",
+                uniformtext_minsize=8,
+                uniformtext_mode='hide'
+            )
+
             st.plotly_chart(fig_barra, use_container_width=True)
 
     # --- Parte 2: Gráfico geral de presença combinada (Dia 1 + Dia 2) ---
@@ -412,7 +424,7 @@ with exp:
         st.plotly_chart(fig_geral, use_container_width=True)
 
 
-exp = st.expander("📈 Notas Médias", expanded=True) #-----NOTAS MÉDIAS
+exp = st.expander("📈 Notas Médias", expanded=False) #-----NOTAS MÉDIAS
 with exp:
     areas = {
         "CN": "Ciências da Natureza",
@@ -518,7 +530,7 @@ with exp:
             fig.update_yaxes(tickformat="d")
             st.plotly_chart(fig, use_container_width=True)
 
-exp = st.expander("📦 Boxplots", expanded=True)      #-------BOXPLOTS
+exp = st.expander("📦 Boxplots", expanded=False)      #-------BOXPLOTS
 with exp:
     notas_cols = []
 
@@ -534,7 +546,6 @@ with exp:
         "Matemática"
     ]
 
-    # --- Primeiro: Boxplots individuais por área e ano ---
     for sigla in ordem_siglas:
         nome = areas.get(sigla)
         col_nota = f"NU_NOTA_{sigla}"
@@ -555,7 +566,6 @@ with exp:
                 notas_cols.append(col_nota)
         del cols[0]
 
-    # --- Segundo: Boxplot geral (sem agrupar por ano) ---
     if notas_cols:
         df_long = df.melt(
             value_vars=notas_cols,
@@ -672,41 +682,38 @@ def main():
     st.dataframe(styled_df)
 
 
-# ------------------ 🎯 Faixa de Notas por Área e Geral ------------------ #
+# NOTAS POR ÁREA
 st.markdown("---")
-st.subheader("🎯 Faixa de Notas por Área e Geral")
+with st.expander("🎯 Faixa de Notas por Área e Geral", expanded=False):
 
-# Definição das faixas de nota
-bins = [0, 200, 400, 600, 800, 1000]
-labels = ["0–200", "201–400", "401–600", "601–800", "801–1000"]
+    bins = [0, 200, 400, 600, 800, 1000]
+    labels = ["0–200", "201–400", "401–600", "601–800", "801–1000"]
 
-# Criação de um dataframe com as áreas e suas notas
-faixa_data = []
-for sigla, nome in areas.items():
-    col_nota = f"NU_NOTA_{sigla}"
-    if col_nota in df.columns:
-        df_temp = df.copy()
-        df_temp["Área"] = nome
-        df_temp["Faixa"] = pd.cut(df_temp[col_nota], bins=bins, labels=labels, include_lowest=True)
-        faixa_data.append(df_temp[["Área", "Faixa"]])
+    faixa_data = []
+    for sigla, nome in areas.items():
+        col_nota = f"NU_NOTA_{sigla}"
+        if col_nota in df.columns:
+            df_temp = df.copy()
+            df_temp["Área"] = nome
+            df_temp["Faixa"] = pd.cut(df_temp[col_nota], bins=bins, labels=labels, include_lowest=True)
+            faixa_data.append(df_temp[["Área", "Faixa"]])
 
-# Combinar tudo em um dataframe longo
-df_faixa = pd.concat(faixa_data)
-faixa_counts = df_faixa.value_counts(["Área", "Faixa"]).reset_index(name="Quantidade")
 
-# Gráfico: Faixa por área
-fig_faixa_area = px.bar(
-    faixa_counts,
-    x="Faixa",
-    y="Quantidade",
-    color="Área",
-    barmode="group",
-    title="Distribuição de faixas de notas por área",
-    category_orders={"Faixa": labels}
-)
-st.plotly_chart(fig_faixa_area, use_container_width=True)
+    df_faixa = pd.concat(faixa_data)
+    faixa_counts = df_faixa.value_counts(["Área", "Faixa"]).reset_index(name="Quantidade")
 
-# ------------------ 🏫 Quantidade de Participantes por Administração de Escola ------------------ #
+    fig_faixa_area = px.bar(
+        faixa_counts,
+        x="Faixa",
+        y="Quantidade",
+        color="Área",
+        barmode="group",
+        title="Distribuição de faixas de notas por área",
+        category_orders={"Faixa": labels}
+    )
+    st.plotly_chart(fig_faixa_area, use_container_width=True)
+
+# PARTICIPANTES POR ESCOLA
 st.markdown("---")
 st.subheader("🏫 Quantidade de Participantes por Administração de Escola (Percentual por Ano)")
 
@@ -728,10 +735,9 @@ if "NU_ANO" in df.columns and "TP_DEPENDENCIA_ADM_ESC" in df.columns:
 
     contagem = df_escola.value_counts(["NU_ANO", "Tipo_Escola"]).reset_index(name="Quantidade")
 
-    # ✅ Usa transform() para evitar erro de índice
     contagem["Percentual"] = contagem.groupby("NU_ANO")["Quantidade"].transform(lambda x: (x / x.sum()) * 100)
 
-    # --- Gráfico de Barras ---
+    # --- GRÁFICO DE BARRAS ---
     st.markdown("#### Distribuição Percentual por Tipo de Escola e Ano")
     fig_bar = px.bar(
         contagem,
@@ -746,7 +752,7 @@ if "NU_ANO" in df.columns and "TP_DEPENDENCIA_ADM_ESC" in df.columns:
     fig_bar.update_layout(showlegend=False)
     st.plotly_chart(fig_bar, use_container_width=True)
 
-    # --- Gráfico de Pizza ---
+    # --- GRÁFICO DE PIZZA (SELETOR MANUAL) ---
     anos = sorted(contagem["NU_ANO"].unique())
     ano_escolhido = st.selectbox("Selecione o ano para visualizar o gráfico de pizza:", anos)
 
@@ -761,8 +767,30 @@ if "NU_ANO" in df.columns and "TP_DEPENDENCIA_ADM_ESC" in df.columns:
     fig_pizza.update_traces(textinfo="percent+label", textfont_size=14)
     st.plotly_chart(fig_pizza, use_container_width=True)
 
+    # --- NOVO TRECHO: GRÁFICOS DE PIZZA PARA TODOS OS ANOS (RELATIVOS) ---
+    st.markdown("#### Comparativo Percentual entre os Anos (Gráficos de Pizza)")
+    colunas = st.columns(len(anos))  # Cria uma coluna para cada ano
+
+    for i, ano in enumerate(anos):
+        dados_ano_relativo = contagem[contagem["NU_ANO"] == ano]
+
+        fig_pizza_rel = px.pie(
+            dados_ano_relativo,
+            names="Tipo_Escola",
+            values="Percentual",
+            hole=0.4,
+            title=f"{ano}",
+            color="Tipo_Escola",
+        )
+        fig_pizza_rel.update_traces(textinfo="percent+label", textfont_size=14)
+        fig_pizza_rel.update_layout(showlegend=(i == 0))  # Legenda apenas no primeiro gráfico
+
+        with colunas[i]:
+            st.plotly_chart(fig_pizza_rel, use_container_width=True)
+
 else:
     st.warning("As colunas 'NU_ANO' e 'TP_DEPENDENCIA_ADM_ESC' não foram encontradas no CSV.")
+
 
 
 
