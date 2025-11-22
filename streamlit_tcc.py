@@ -314,7 +314,7 @@ with st.sidebar.expander("Bens e Moradia", expanded=False):
 
 st.header("Perspectiva de Desempenho")
 
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["📝 Inscritos", "🙋 Presença", "Médias", "📊 Macroanálise", "🔍 Microanálise"])
+tab1, tab2, tab3, tab4 = st.tabs(["📝 Inscritos", "🙋 Presença", "🧮 Notas", "📘 Médias", ])
 
 # ------------------------------PRIMEIRA ABA: INSCRITOS (CORRIGIDA)-------------------------------
 
@@ -324,46 +324,47 @@ with tab1:
     total_treineiros_base = len(df_base_para_metricas[df_base_para_metricas["IN_TREINEIRO"] == "1"])
     total_final_filtrado = len(df)
 
-    cols = st.columns(5)
+    cols = st.columns([0.2, 1, 1, 1, 1, 1])
 
     cols[1].metric("Inscritos Base", total_inscritos_base)
     cols[2].metric("Regulares", total_regulares_base)
     cols[3].metric("Treineiros", total_treineiros_base)
+    cols[4].metric("Língua Inglesa", total_treineiros_base)
+    cols[5].metric("Língua Espanhola", total_treineiros_base)
 
 # ---------------------------------------BLOCO DAS INSCRIÇÕES---------------------------------------
-st.markdown('<h4 style="margin-bottom:5px;">Gráfico de inscritos por ano</h4>', unsafe_allow_html=True)
+    st.markdown('<h4 style="margin-bottom:5px;">Gráfico de inscritos por ano</h4>', unsafe_allow_html=True)
 
-df_chart = df_base_para_metricas.groupby("NU_ANO").size().reset_index(name="Quantidade")
-df_chart = df_chart[df_chart["NU_ANO"].isin([2019, 2023])]
-df_chart["NU_ANO"] = df_chart["NU_ANO"].astype(str)
+    df_chart = df_base_para_metricas.groupby("NU_ANO").size().reset_index(name="Quantidade")
+    df_chart = df_chart[df_chart["NU_ANO"].isin([2019, 2023])]
+    df_chart["NU_ANO"] = df_chart["NU_ANO"].astype(str)
 
-fig_inscritos = px.bar(
-    df_chart,
-    x="NU_ANO",
-    y="Quantidade",
-    text="Quantidade",
-    color_discrete_sequence=["#005FB8"]
-)
+    fig_inscritos = px.bar(
+        df_chart,
+        x="NU_ANO",
+        y="Quantidade",
+        text="Quantidade",
+        color_discrete_sequence=["#005FB8"]
+    )
 
-fig_inscritos.update_traces(
-    textposition="inside",
-    textfont=dict(size=16, color="white"),
-    cliponaxis=False
-)
+    fig_inscritos.update_traces(
+        textposition="inside",
+        textfont=dict(size=16, color="white"),
+        cliponaxis=False
+    )
 
-fig_inscritos.update_layout(
-    xaxis_title="Ano",
-    yaxis_title="Qtd. de inscritos",
-    xaxis=dict(tickmode='array', tickvals=["2019","2023"]),
-    plot_bgcolor="white",
-    showlegend=False,
-    height=450,
-    margin=dict(t=20)
-)
+    fig_inscritos.update_layout(
+        xaxis_title="Ano",
+        yaxis_title="Qtd. de inscritos",
+        xaxis=dict(tickmode='array', tickvals=["2019","2023"]),
+        plot_bgcolor="white",
+        showlegend=False,
+        height=450,
+        margin=dict(t=20)
+    )
 
-fig_inscritos.update_yaxes(showgrid=True, gridcolor='#E5E5E5')
-st.plotly_chart(fig_inscritos, use_container_width=True)
-
+    fig_inscritos.update_yaxes(showgrid=True, gridcolor='#E5E5E5')
+    st.plotly_chart(fig_inscritos, use_container_width=True)
 
 # -----------------------Segunda ABA: PRESENÇA---------------------------------
 with tab2:
@@ -442,11 +443,15 @@ with tab2:
             st.markdown("---")
             st.subheader("Percentuais gerais de presença em cada dia")
 
-            geral = df["Status_Geral"].value_counts().reset_index()
+            # Cálculo REAL por meio do DF
+            geral = df["Status_Geral"].value_counts(dropna=False).reset_index()
             geral.columns = ["Situação", "Quantidade"]
+
+            # Cálculo do percentual real
             total = geral["Quantidade"].sum()
             geral["Percentual"] = geral["Quantidade"] / total
 
+            # Paleta usada no restante do dashboard
             cores = {
                 "Apenas no 1º dia": "#FFA15A",
                 "Apenas no 2º dia": "#00CC96",
@@ -454,30 +459,84 @@ with tab2:
                 "Presente nos dois dias": "#636EFA"
             }
 
+            # Ordenação correta no gráfico
+            ordem = [
+                "Apenas no 1º dia",
+                "Apenas no 2º dia",
+                "Ausente em ambos os dias",
+                "Presente nos dois dias"
+            ]
+
             fig_geral = px.bar(
                 geral,
-                x="Situação", y="Percentual",
+                x="Situação",
+                y="Percentual",
                 text=geral["Percentual"].apply(lambda x: f"{x:.1%}"),
                 color="Situação",
                 color_discrete_map=cores,
-                category_orders={
-                    "Situação": [
-                        "Apenas no 1º dia",
-                        "Apenas no 2º dia",
-                        "Ausente em ambos os dias",
-                        "Presente nos dois dias"
-                    ]
-                }
+                category_orders={"Situação": ordem}
             )
 
             fig_geral.update_yaxes(tickformat=".0%")
             fig_geral.update_traces(textposition="inside", insidetextfont_color="white")
+
             st.plotly_chart(fig_geral, use_container_width=True)
 
-
 #------------------------------------------NOTAS MÉDIAS-----------------------------------------
-
 with tab3:
+    subtab1, subtab2 = st.tabs(["📝 Questões", "📘 Medidas Centrais"])
+
+    with subtab1:
+        exp1 = st.expander("Quantidades totais de questões")
+        with exp1:
+                col1, col2, col3, col4, col5 = st.columns(5)
+                col1.metric("Ciências da Natureza", 45)
+                col2.metric("Ciências Humanas", 45)
+                col3.metric("Matemática", 45)
+                col4.metric("Linguagens e Códigos", 45)
+                col5.metric("Total", 180)
+
+        exp2 = st.expander("Quantidades de questões por complexidade")
+        with exp2:
+            st.write("Conteúdo aqui...")
+
+        exp3 = st.expander("Quantidades de questões por habilidade")
+        with exp3:
+            st.write("Conteúdo aqui...")
+
+        exp4 = st.expander("Habilidades de melhores desempenhos por área")
+        with exp4:
+            st.write("Conteúdo aqui...")
+
+        exp5 = st.expander("Habilidades de piores desempenhos por área")
+        with exp5:
+            st.write("Conteúdo aqui...")
+
+        exp5 = st.expander("Características dos acertos")
+        with exp5:
+            st.write("Conteúdo aqui...")
+
+
+    # ---------------------------------------------
+    # SUB-ABA MEDIDAS CENTRAIS
+    # ---------------------------------------------
+    with subtab2:
+
+        st.markdown("#### 📘 Medidas Centrais por Área")
+
+        exp = st.expander("Médias")
+        with exp:
+            st.write("Conteúdo aqui...")
+
+        exp = st.expander("Desvios-Padrão")
+        with exp:
+            st.write("Conteúdo aqui...")
+
+        exp = st.expander("Distribuição")
+        with exp:
+            st.write("Conteúdo aqui...")
+
+with tab4:
     exp = st.expander("📈 Notas Médias", expanded=False)
     with exp:
         areas = {
