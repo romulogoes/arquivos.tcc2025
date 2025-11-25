@@ -1,4 +1,7 @@
-pandas
 streamlit
-plotly
+pandas
 numpy
+matplotlib
+plotly
+altair
+Pillow
