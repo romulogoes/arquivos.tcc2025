@@ -1,4 +1,7 @@
 import streamlit as st
+import random
+import matplotlib.pyplot as plt
+import seaborn as sns
 import pandas as pd
 import numpy as np
 import altair as alt
@@ -48,7 +51,7 @@ if not selecionar_todos:
 df["NU_ANO"] = (
     df["NU_ANO"]
     .astype(str)
-    .str.extract(r"(20\d{2})")    # pega apenas anos válidos
+    .str.extract(r"(20\d{2})")  # pega apenas anos válidos
     .astype(float)
     .astype("Int64")
 )
@@ -62,7 +65,6 @@ df_base_para_metricas = df.copy()
 # FILTROS PARA OS TREINEIROS
 st.sidebar.markdown("---")
 st.sidebar.header("Filtros Adicionais")
-
 
 incluir_treineiros = st.sidebar.checkbox(
     "Incluir estudantes treineiros", value=True
@@ -311,7 +313,6 @@ with st.sidebar.expander("Bens e Moradia", expanded=False):
 
     st.markdown(f"**Total após filtros bens/moradia:** {len(df):,}")
 
-
 st.header("Perspectiva de Desempenho")
 
 tab1, tab2, tab3, tab4 = st.tabs(["📝 Inscritos", "🙋 Presença", "🧮 Notas", "📘 Médias", ])
@@ -326,13 +327,16 @@ with tab1:
 
     cols = st.columns([0.2, 1, 1, 1, 1, 1])
 
+    total_ingles_base = len(df_base_para_metricas[df_base_para_metricas["TP_LINGUA"] == 0])
+    total_espanhol_base = len(df_base_para_metricas[df_base_para_metricas["TP_LINGUA"] == 1])
+
     cols[1].metric("Inscritos Base", total_inscritos_base)
     cols[2].metric("Regulares", total_regulares_base)
     cols[3].metric("Treineiros", total_treineiros_base)
-    cols[4].metric("Língua Inglesa", total_treineiros_base)
-    cols[5].metric("Língua Espanhola", total_treineiros_base)
+    cols[4].metric("Língua Inglesa", total_ingles_base)
+    cols[5].metric("Língua Espanhola", total_espanhol_base)
 
-# ---------------------------------------BLOCO DAS INSCRIÇÕES---------------------------------------
+    # ---------------------------------------BLOCO DAS INSCRIÇÕES---------------------------------------
     st.markdown('<h4 style="margin-bottom:5px;">Gráfico de inscritos por ano</h4>', unsafe_allow_html=True)
 
     df_chart = df_base_para_metricas.groupby("NU_ANO").size().reset_index(name="Quantidade")
@@ -356,7 +360,7 @@ with tab1:
     fig_inscritos.update_layout(
         xaxis_title="Ano",
         yaxis_title="Qtd. de inscritos",
-        xaxis=dict(tickmode='array', tickvals=["2019","2023"]),
+        xaxis=dict(tickmode='array', tickvals=["2019", "2023"]),
         plot_bgcolor="white",
         showlegend=False,
         height=450,
@@ -422,7 +426,7 @@ with tab2:
             with col2:
                 st.plotly_chart(fig_barra, use_container_width=True)
 
-# ----------------------- Parte 2: Gráfico geral de presença combinada (Dia 1 + Dia 2) ------------------------------
+        # ----------------------- Parte 2: Gráfico geral de presença combinada (Dia 1 + Dia 2) ------------------------------
         if all(col in df.columns for col in dias.values()):
             df["Status_Geral"] = np.select(
                 [
@@ -482,59 +486,288 @@ with tab2:
 
             st.plotly_chart(fig_geral, use_container_width=True)
 
-#------------------------------------------NOTAS MÉDIAS-----------------------------------------
+# ------------------------------------------NOTAS MÉDIAS-----------------------------------------
 with tab3:
     subtab1, subtab2 = st.tabs(["📝 Questões", "📘 Medidas Centrais"])
 
     with subtab1:
         exp1 = st.expander("Quantidades totais de questões")
         with exp1:
-                col1, col2, col3, col4, col5 = st.columns(5)
-                col1.metric("Ciências da Natureza", 45)
-                col2.metric("Ciências Humanas", 45)
-                col3.metric("Matemática", 45)
-                col4.metric("Linguagens e Códigos", 45)
-                col5.metric("Total", 180)
+            col1, col2, col3, col4, col5 = st.columns(5)
+            col1.metric("Ciências da Natureza", 45)
+            col2.metric("Ciências Humanas", 45)
+            col3.metric("Matemática", 45)
+            col4.metric("Linguagens e Códigos", 45)
+            col5.metric("Total", 180)
 
-        exp2 = st.expander("Quantidades de questões por complexidade")
+        exp2 = st.expander("Quantidades de questões por complexidade", expanded=False)
         with exp2:
-            st.write("Conteúdo aqui...")
+
+            materias = ["Ciências Naturais", "Ciências Humanas", "Matemática",
+                        "Linguagens e Códigos", "Redação", "Total"]
+
+            anos = ["2019", "2023"]
+            categorias = ["Baixa", "Média", "Alta"]
+
+            arrays = [
+                [ano for ano in anos for _ in categorias],
+                categorias * len(anos)
+            ]
+            tuples = list(zip(*arrays))
+            col_index = pd.MultiIndex.from_tuples(tuples, names=["Ano", "Nível"])
+            df_complex = pd.DataFrame(index=materias, columns=col_index, dtype=float)
+            for materia in materias:
+                for ano in anos:
+                    df_complex.loc[materia, ano] = np.random.rand(3) * 100
+
+            st.write(df_complex)
 
         exp3 = st.expander("Quantidades de questões por habilidade")
         with exp3:
-            st.write("Conteúdo aqui...")
+            num_habilidades = 30
+
+            anos = ["Média"] + [str(ano) for ano in range(2018, 2024)]
+
+            habilidades = [f"HAB{str(i + 1).zfill(3)} - Habilidade {i + 1}" for i in range(num_habilidades)]
+
+            valores = np.random.randint(1, 11, size=(num_habilidades, len(anos)))
+
+            df_hab = pd.DataFrame(valores, columns=anos)
+            df_hab.insert(0, "Habilidade", habilidades)
+
+            st.write(df_hab)
 
         exp4 = st.expander("Habilidades de melhores desempenhos por área")
         with exp4:
-            st.write("Conteúdo aqui...")
+            ini = 0.2
+            fim = 0.9
+            asc = True
+
+            num_habilidades = 3
+            habilidades = [f"HAB{str(i + 1).zfill(3)} - Habilidade {i + 1}" for i in range(num_habilidades)]
+
+            percentuais = np.random.uniform(ini, fim, size=num_habilidades)
+
+            df_hab = pd.DataFrame({
+                "Habilidade": habilidades,
+                "Percentual de Acerto": percentuais
+            })
+            df_hab = df_hab.sort_values(by="Percentual de Acerto", ascending=asc)
+            df_hab.index = list(range(1, len(df_hab) + 1))
+            st.write(df_hab)
 
         exp5 = st.expander("Habilidades de piores desempenhos por área")
         with exp5:
-            st.write("Conteúdo aqui...")
+            st.write("Conteúdo aqui (se quiser deixar vazio, pode remover o 'with')")
 
-        exp5 = st.expander("Características dos acertos")
-        with exp5:
-            st.write("Conteúdo aqui...")
+        exp6 = st.expander("Características dos acertos")
+        with exp6:
 
+            st.write("**Distribuição dos acertos por parâmetro e intensidade**")
 
-    # ---------------------------------------------
-    # SUB-ABA MEDIDAS CENTRAIS
-    # ---------------------------------------------
+            niveis = ["Baixa", "Média", "Alta"]
+
+            valores_D = [random.randint(10, 100) for _ in niveis]
+            total_D = sum(valores_D)
+            discriminalidade = [v * 100 / total_D for v in valores_D]
+
+            valores_F = [random.randint(10, 100) for _ in niveis]
+            total_F = sum(valores_F)
+            dificuldade = [v * 100 / total_F for v in valores_F]
+
+            valores_C = [random.randint(10, 100) for _ in niveis]
+            total_C = sum(valores_C)
+            chute = [v * 100 / total_C for v in valores_C]
+
+            parametros = {
+                "Discriminalidade": discriminalidade,
+                "Dificuldade": dificuldade,
+                "Chute": chute
+            }
+
+            col1, col2, col3 = st.columns(3)
+
+            for col, (param, valores) in zip([col1, col2, col3], parametros.items()):
+                df_temp = pd.DataFrame({
+                    "Intensidade": niveis,
+                    "Percentual": valores
+                })
+
+                fig_pizza = px.pie(
+                    df_temp,
+                    names="Intensidade",
+                    values="Percentual",
+                    title=param,
+                )
+
+                col.plotly_chart(fig_pizza, use_container_width=True)
+
+            parametros2 = ["Dificuldade", "Discriminalidade", "Chute"]
+            niveis2 = ["Baixa", "Média", "Alta"]
+
+            dados = np.random.randint(10, 100, size=(len(niveis2), len(parametros2)))
+            df_barras = pd.DataFrame(dados, columns=parametros2, index=niveis2)
+
+            fig = px.bar(
+                df_barras,
+                barmode="group",
+                title="Percentual de acerto por parâmetro e intensidade",
+                labels={"value": "Percentual (%)", "index": "Intensidade"}
+            )
+
+            st.plotly_chart(fig, use_container_width=True)
+
     with subtab2:
-
-        st.markdown("#### 📘 Medidas Centrais por Área")
-
-        exp = st.expander("Médias")
+        exp = st.expander("Médias por ano e área")
         with exp:
-            st.write("Conteúdo aqui...")
+            st.subheader("Médias aritméticas")
 
-        exp = st.expander("Desvios-Padrão")
-        with exp:
-            st.write("Conteúdo aqui...")
+            col_names = [
+                "Geral",
+                "Ciências Naturais",
+                "Ciências Humanas",
+                "Matemática",
+                "Linguagens e Códigos",
+                "Redação"
+            ]
 
-        exp = st.expander("Distribuição")
+            # Valores fictícios — substitua depois pelos reais
+            col_values = [10., 20., 30., 40., 50., 60.]
+
+            cols = st.columns(6)
+            for nome, valor, coluna in zip(col_names, col_values, cols):
+                with coluna:
+                    st.metric(label=nome, value=valor)
+
+        # =====================================================
+        # -------- HISTOGRAMA DE MÉDIAS GERAIS (2019/2023) -----
+        # =====================================================
+        exp = st.expander("Histograma de Médias gerais")
         with exp:
-            st.write("Conteúdo aqui...")
+            data = {
+                "intervalo": [
+                    "[0-100]", "[0-100]",
+                    "[100-200]", "[100-200]",
+                    "[200-300]", "[200-300]",
+                    "[300-400]", "[300-400]",
+                    "[400-500]", "[400-500]",
+                ],
+                "ano": ["2019", "2023"] * 5,
+                "percentual": [0.1, 0.3, 0.15, 0.25, 0.2, 0.2, 0.25, 0.15, 0.3, 0.1],
+            }
+
+            df = pd.DataFrame(data)
+
+            fig = px.bar(
+                df,
+                x="intervalo",
+                y="percentual",
+                color="ano",
+                barmode="group",
+                labels={"intervalo": "Faixa de notas", "percentual": "Percentual"},
+                text=[f"{v * 100:.1f}%" for v in df["percentual"]],
+            )
+
+            fig.update_traces(textposition="inside", textfont_size=16)
+            fig.update_layout(yaxis=dict(tickformat=".1%", range=[0, 0.35]))
+
+            st.plotly_chart(fig, use_container_width=True)
+
+        # =====================================================
+        # ------ MÉDIAS POR ADMINISTRAÇÃO DA ESCOLA -----------
+        # =====================================================
+        exp = st.expander("Médias por administração da escola")
+        with exp:
+            anos = ["2019", "2023"]
+            adm = ["Federal", "Estadual", "Municipal", "Privada", "Sem informação"]
+
+            np.random.seed(42)
+            valores = np.random.randint(100, 501, size=(len(anos), len(adm)))
+
+            df = pd.DataFrame(valores, index=anos, columns=adm)
+
+            fig = px.imshow(
+                df.values,
+                x=df.columns.tolist(),
+                y=df.index.tolist(),
+                labels=dict(x="Administração", y="Ano", color="Nota"),
+                color_continuous_scale=["white", "darkblue"],
+                range_color=(0, 500),
+                aspect="auto"
+            )
+
+            fig.data[0].text = df.values.astype(int)
+            fig.data[0].texttemplate = "%{text}"
+            fig.data[0].textfont = dict(color="black", size=12)
+
+            fig.update_yaxes(autorange="reversed")
+            fig.update_traces(textfont=dict(size=20))
+
+            st.plotly_chart(fig, use_container_width=True)
+
+        # =====================================================
+        # ------ MÉDIAS POR LOCALIDADE DA ESCOLA --------------
+        # =====================================================
+        exp = st.expander("Médias por localidade da escola")
+        with exp:
+            anos = ["2019", "2023"]
+            locais = ["Urbana", "Rural", "Sem informação"]
+
+            np.random.seed(42)
+            valores = np.random.randint(100, 501, size=(len(anos), len(locais)))
+
+            df = pd.DataFrame(valores, index=anos, columns=locais)
+
+            fig = px.imshow(
+                df.values,
+                x=df.columns.tolist(),
+                y=df.index.tolist(),
+                labels=dict(x="Localidade", y="Ano", color="Nota"),
+                color_continuous_scale=["white", "darkblue"],
+                range_color=(0, 500),
+                aspect="auto"
+            )
+
+            fig.data[0].text = df.values.astype(int)
+            fig.data[0].texttemplate = "%{text}"
+            fig.data[0].textfont = dict(color="black", size=12)
+
+            fig.update_yaxes(autorange="reversed")
+            fig.update_traces(textfont=dict(size=20))
+
+            st.plotly_chart(fig, use_container_width=True)
+
+        # =====================================================
+        # ------ MÉDIAS POR MODALIDADE DE ENSINO --------------
+        # =====================================================
+        exp = st.expander("Médias por modalidade de ensino")
+        with exp:
+            anos = ["2019", "2023"]
+            modalidades = ["Regular", "EJA", "Educação Especial", "Sem informação"]
+
+            np.random.seed(42)
+            valores = np.random.randint(100, 501, size=(len(anos), len(modalidades)))
+
+            df = pd.DataFrame(valores, index=anos, columns=modalidades)
+
+            fig = px.imshow(
+                df.values,
+                x=df.columns.tolist(),
+                y=df.index.tolist(),
+                labels=dict(x="Modalidade", y="Ano", color="Nota"),
+                color_continuous_scale=["white", "darkblue"],
+                range_color=(0, 500),
+                aspect="auto"
+            )
+
+            fig.data[0].text = df.values.astype(int)
+            fig.data[0].texttemplate = "%{text}"
+            fig.data[0].textfont = dict(color="black", size=12)
+
+            fig.update_yaxes(autorange="reversed")
+            fig.update_traces(textfont=dict(size=20))
+
+            st.plotly_chart(fig, use_container_width=True)
 
 with tab4:
     exp = st.expander("📈 Notas Médias", expanded=False)
@@ -726,7 +959,7 @@ with tab4:
                 points="all",
                 title="Comparação de notas por área",
                 color_discrete_sequence=px.colors.qualitative.Set2
-        )
+            )
 
 with tab4:
     def heatmaps(df):
@@ -745,19 +978,22 @@ with tab4:
                     for ano in sorted(df["NU_ANO"].unique()):
                         sub = df[df["NU_ANO"] == ano]
                         media = pd.to_numeric(sub[col], errors="coerce").mean(skipna=True)
-                        rows.append({"Area": area, "Ano": int(ano), "Media": float(media) if not np.isnan(media) else np.nan})
+                        rows.append(
+                            {"Area": area, "Ano": int(ano), "Media": float(media) if not np.isnan(media) else np.nan})
 
             if not rows:
                 st.warning("Não foi possível calcular heatmaps a partir de colunas de nota. Mostrando exemplo.")
                 df_small = pd.DataFrame({
-                    ("Médias gerais","2019"): [1,5,3,7],
-                    ("Médias gerais","2023"): [10,20,15,25],
+                    ("Médias gerais", "2019"): [1, 5, 3, 7],
+                    ("Médias gerais", "2023"): [10, 20, 15, 25],
                 })
                 df_small.columns = pd.MultiIndex.from_tuples(df_small.columns)
-                df_small["Dependência"] = ["Federal","Estadual","Municipal","Privada"]
+                df_small["Dependência"] = ["Federal", "Estadual", "Municipal", "Privada"]
                 df_small.set_index("Dependência", inplace=True)
-                fig = px.imshow(np.hstack([df_small[("Médias gerais","2019")].values.reshape(-1,1), df_small[("Médias gerais","2023")].values.reshape(-1,1)]),
-                                x=["2019","2023"], y=df_small.index, text_auto=True, aspect="auto", title="Heatmap exemplo (Médias gerais)")
+                fig = px.imshow(np.hstack([df_small[("Médias gerais", "2019")].values.reshape(-1, 1),
+                                           df_small[("Médias gerais", "2023")].values.reshape(-1, 1)]),
+                                x=["2019", "2023"], y=df_small.index, text_auto=True, aspect="auto",
+                                title="Heatmap exemplo (Médias gerais)")
                 st.plotly_chart(fig, use_container_width=True)
                 return
 
@@ -775,14 +1011,17 @@ with tab4:
                         if col in df.columns:
                             sub = df[(df[col_depend] == dep)]
                             media = pd.to_numeric(sub[col], errors="coerce").mean(skipna=True)
-                            dep_rows.append({"Dependencia": dep, "Area": area, "Media": float(media) if not np.isnan(media) else np.nan})
+                            dep_rows.append({"Dependencia": dep, "Area": area,
+                                             "Media": float(media) if not np.isnan(media) else np.nan})
                 if dep_rows:
                     df_dep = pd.DataFrame(dep_rows)
                     pivot2 = df_dep.pivot(index="Dependencia", columns="Area", values="Media")
-                    fig2 = px.imshow(pivot2, text_auto=".1f", aspect="auto", title="Heatmap: média por Dependência x Área")
+                    fig2 = px.imshow(pivot2, text_auto=".1f", aspect="auto",
+                                     title="Heatmap: média por Dependência x Área")
                     st.plotly_chart(fig2, use_container_width=True)
             else:
-                st.info("Coluna 'TP_DEPENDENCIA' não encontrada — não foi possível gerar o heatmap detalhado por dependência.")
+                st.info(
+                    "Coluna 'TP_DEPENDENCIA' não encontrada — não foi possível gerar o heatmap detalhado por dependência.")
 
 
     def main():
@@ -837,20 +1076,22 @@ with tab4:
                 df_temp["Faixa"] = pd.cut(df_temp[col_nota], bins=bins, labels=labels, include_lowest=True)
                 faixa_data.append(df_temp[["Área", "Faixa"]])
 
+        if faixa_data:
+            df_faixa = pd.concat(faixa_data)
+            faixa_counts = df_faixa.value_counts(["Área", "Faixa"]).reset_index(name="Quantidade")
 
-        df_faixa = pd.concat(faixa_data)
-        faixa_counts = df_faixa.value_counts(["Área", "Faixa"]).reset_index(name="Quantidade")
-
-        fig_faixa_area = px.bar(
-            faixa_counts,
-            x="Faixa",
-            y="Quantidade",
-            color="Área",
-            barmode="group",
-            title="Distribuição de faixas de notas por área",
-            category_orders={"Faixa": labels}
-        )
-        st.plotly_chart(fig_faixa_area, use_container_width=True)
+            fig_faixa_area = px.bar(
+                faixa_counts,
+                x="Faixa",
+                y="Quantidade",
+                color="Área",
+                barmode="group",
+                title="Distribuição de faixas de notas por área",
+                category_orders={"Faixa": labels}
+            )
+            st.plotly_chart(fig_faixa_area, use_container_width=True)
+        else:
+            st.warning("Não há dados de notas disponíveis para gerar o gráfico de faixas.")
 
     # PARTICIPANTES POR ESCOLA
     st.markdown("---")
@@ -876,7 +1117,7 @@ with tab4:
 
         contagem["Percentual"] = contagem.groupby("NU_ANO")["Quantidade"].transform(lambda x: (x / x.sum()) * 100)
 
-# ------------------------------------------ GRÁFICO DE BARRAS -----------------------------------------
+        # ------------------------------------------ GRÁFICO DE BARRAS -----------------------------------------
         st.markdown("#### Distribuição Percentual por Tipo de Escola e Ano")
         fig_bar = px.bar(
             contagem,
@@ -930,7 +1171,7 @@ with tab4:
     else:
         st.warning("As colunas 'NU_ANO' e 'TP_DEPENDENCIA_ADM_ESC' não foram encontradas no CSV.")
 
-    exp = st.expander("📦 Boxplots", expanded=True)      #-------BOXPLOTS
+    exp = st.expander("📦 Boxplots", expanded=True)  # -------BOXPLOTS
     with exp:
         notas_cols = []
 
@@ -1004,10 +1245,9 @@ with tab4:
             )
             st.plotly_chart(fig_all, use_container_width=True)
 
-    #HEATMAP
+    # HEATMAP
     st.markdown("---")
     st.subheader("📌 Heatmap de Notas por Área e Ano")
-
 
     colunas_notas = {
         "Ciências da Natureza": "NU_NOTA_CN",
@@ -1017,41 +1257,101 @@ with tab4:
         "Redação": "NU_NOTA_REDACAO"
     }
 
-
+    # Converter colunas de notas para numérico
     for col in colunas_notas.values():
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
 
+    # Verificar se há dados disponíveis
+    areas_disponiveis = []
+    for area, coluna in colunas_notas.items():
+        if coluna in df.columns and df[coluna].notna().any():
+            areas_disponiveis.append(area)
+
+    if not areas_disponiveis:
+        st.warning("Não há dados de notas disponíveis para gerar o heatmap.")
+        st.stop()
+
+    # Calcular médias reais por área e ano
     linhas = []
     for area, coluna in colunas_notas.items():
-        if coluna in df.columns:
+        if coluna in df.columns and df[coluna].notna().any():
             medias = (
                 df.groupby("NU_ANO")[coluna]
                 .mean()
                 .reset_index(name="Média")
             )
+            # Converter para porcentagem da nota máxima (1000 pontos)
+            medias["Média_Percentual"] = (medias["Média"] / 1000) * 100
             medias["Área"] = area
             linhas.append(medias)
 
-    df_medias = pd.concat(linhas)
+    if linhas:
+        df_medias = pd.concat(linhas)
 
+        # Criar pivot table para o heatmap (usando porcentagens)
+        pivot_percent = df_medias.pivot(index="Área", columns="NU_ANO", values="Média_Percentual")
+        pivot_absoluto = df_medias.pivot(index="Área", columns="NU_ANO", values="Média")
 
-    pivot = df_medias.pivot(index="Área", columns="NU_ANO", values="Média")
+        # Ordenar áreas de forma consistente
+        ordem_areas = ["Ciências da Natureza", "Ciências Humanas", "Linguagens e Códigos", "Matemática", "Redação"]
+        pivot_percent = pivot_percent.reindex(ordem_areas, fill_value=np.nan)
+        pivot_absoluto = pivot_absoluto.reindex(ordem_areas, fill_value=np.nan)
 
-    fig = px.imshow(
-        pivot,
-        text_auto=".1f",
-        color_continuous_scale="Blues",
-        title="Heatmap das Médias por Área e Ano",
-        aspect="auto"
-    )
+        # Criar heatmap com dados em porcentagem
+        fig = px.imshow(
+            pivot_percent,
+            text_auto=".1f",
+            color_continuous_scale="RdYlBu_r",  # Escala de cores invertida (vermelho para baixo, azul para alto)
+            title="Heatmap das Médias por Área e Ano (em % da nota máxima)",
+            aspect="auto",
+            labels=dict(color="Percentual (%)")
+        )
 
-    fig.update_layout(
-        xaxis_title="Ano",
-        yaxis_title="Área",
-        coloraxis_colorbar_title="Média"
-    )
+        fig.update_layout(
+            xaxis_title="Ano",
+            yaxis_title="Área",
+            coloraxis_colorbar_title="Percentual (%)"
+        )
 
-    st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True)
+
+        # Mostrar tabela com valores em porcentagem e absoluto
+        st.subheader("📊 Tabela de Médias Detalhadas")
+
+        # Criar DataFrame combinado
+        tabela_combinada = pd.DataFrame()
+        for area in ordem_areas:
+            if area in pivot_percent.index:
+                for ano in sorted(pivot_percent.columns):
+                    perc = pivot_percent.loc[area, ano]
+                    absol = pivot_absoluto.loc[area, ano]
+                    if not pd.isna(perc) and not pd.isna(absol):
+                        tabela_combinada.loc[area, f"{ano} (%)"] = f"{perc:.1f}%"
+                        tabela_combinada.loc[area, f"{ano}"] = f"{absol:.0f}"
+
+        st.dataframe(tabela_combinada, use_container_width=True)
+
+        # Estatísticas adicionais
+        st.subheader("📈 Estatísticas Adicionais")
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.write("**Percentual médio geral por ano:**")
+            media_ano = pivot_percent.mean()
+            for ano in sorted(media_ano.index):
+                st.write(f"{ano}: {media_ano[ano]:.1f}%")
+
+        with col2:
+            st.write("**Percentual médio geral por área:**")
+            media_area = pivot_percent.mean(axis=1)
+            for area in ordem_areas:
+                if area in media_area.index:
+                    st.write(f"{area}: {media_area[area]:.1f}%")
+
+        # Adicionar referência
+        st.info("📌 Referência: 100% = 1000 pontos (nota máxima do ENEM)")
+    else:
+        st.warning("Não foi possível calcular as médias para o heatmap.")
 
 
