@@ -4,4 +4,6 @@ numpy
 matplotlib
 plotly
 altair
+seaborn
 Pillow
+
