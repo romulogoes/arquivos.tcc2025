@@ -639,9 +639,6 @@ with tab3:
                 with coluna:
                     st.metric(label=nome, value=valor)
 
-        # =====================================================
-        # -------- HISTOGRAMA DE MÉDIAS GERAIS (2019/2023) -----
-        # =====================================================
         exp = st.expander("Histograma de Médias gerais")
         with exp:
             data = {
@@ -673,9 +670,6 @@ with tab3:
 
             st.plotly_chart(fig, use_container_width=True)
 
-        # =====================================================
-        # ------ MÉDIAS POR ADMINISTRAÇÃO DA ESCOLA -----------
-        # =====================================================
         exp = st.expander("Médias por administração da escola")
         with exp:
             anos = ["2019", "2023"]
@@ -705,9 +699,6 @@ with tab3:
 
             st.plotly_chart(fig, use_container_width=True)
 
-        # =====================================================
-        # ------ MÉDIAS POR LOCALIDADE DA ESCOLA --------------
-        # =====================================================
         exp = st.expander("Médias por localidade da escola")
         with exp:
             anos = ["2019", "2023"]
@@ -737,9 +728,6 @@ with tab3:
 
             st.plotly_chart(fig, use_container_width=True)
 
-        # =====================================================
-        # ------ MÉDIAS POR MODALIDADE DE ENSINO --------------
-        # =====================================================
         exp = st.expander("Médias por modalidade de ensino")
         with exp:
             anos = ["2019", "2023"]
